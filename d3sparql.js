@@ -1332,6 +1332,139 @@ d3sparql.sunburst = function(json, config) {
 }
 
 /*
+  Rendering sparql-results+json object into a icicle
+
+  References:
+    http://bl.ocks.org/4348373  Zoomable Sunburst
+    http://www.jasondavies.com/coffee-wheel/  Coffee Flavour Wheel
+
+  Options:
+    config = {
+      "width":    1000,      // canvas width (optional)
+      "height":   900,       // canvas height (optional)
+      "margin":   150,       // margin for labels (optional)
+      "selector": "#result"
+      // options for d3sparql.tree() can be added here ...
+    }
+
+  Synopsis:
+    d3sparql.query(endpoint, sparql, render)
+
+    function render(json) {
+      var config = { ... }
+      d3sparql.sunburst(json, config)
+    }
+
+  CSS/SVG:
+    <style>
+    .node text {
+      font-size: 10px;
+      font-family: sans-serif;
+    }
+    .arc {
+      stroke: #ffffff;
+      fill-rule: evenodd;
+    }
+    </style>
+*/
+d3sparql.icicle = function(json, config) {
+  config = config || {}
+
+  var tree = (json.head && json.results) ? d3sparql.tree(json, config) : json
+
+  var opts = {
+    "width":    config.width    || 1000,
+    "height":   config.height   || 900,
+    "margin":   config.margin   || 150,
+    "selector": config.selector || null
+  }
+
+  var width = 600,
+      height = 400;
+
+  var formatNumber = d3.format(",d");
+
+  var x = d3.scale.linear()
+      .range([0, width]);
+
+  var y = d3.scale.linear()
+      .range([0, height]);
+
+  var color = d3.scale.category20c();
+
+  var partition = d3.layout.partition()
+      // .children(function(d) { return isNaN(d.value) ? d3.entries(d.value) : null; })
+      .value(function(d) {return d.value})
+
+  var svg = d3sparql.select(opts.selector,"icicle").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g");
+
+  var nodes = partition.nodes(tree);
+
+  var rect = svg.selectAll("rect")
+    .data(nodes)
+    .enter()
+    .append("rect")
+    .attr("x", function(d) { return x(d.x); })
+    .attr("y", function(d) { return y(d.y); })
+    .attr("width",  function(d) { return x(d.dx); })
+    .attr("height", function(d) { return y(d.dy); })
+    .attr("fill",   function(d) { return color((d.children ? d : d.parent).value); })
+    .on("click", clicked);
+
+  var text = svg.selectAll("text")
+    .data(nodes)
+    .enter()
+    .append("text")
+    .attr("x", function(d) { return x(d.x); })
+    .attr("y", function(d) { return y(d.y); })
+    .attr("width",  function(d) { return x(d.dx); })
+    .attr("height", function(d) { return y(d.dy); })
+    .attr("dx", "0em")
+    .attr("dy", "+1em")
+    .text(function(d) { return d.name })
+
+  text.attr({
+    "font-size": "8px",
+    "font-family": "sans-serif",
+  })
+
+  function clicked(d) {
+    x.domain([d.x, d.x + d.dx]);
+    y.domain([d.y, 1]).range([d.y ? 20 : 0, height]);
+
+    rect.transition()
+        .duration(750)
+        .attr("x", function(d) { return x(d.x); })
+        .attr("y", function(d) { return y(d.y); })
+        .attr("width", function(d) { return x(d.x + d.dx) - x(d.x); })
+        .attr("height", function(d) { return y(d.y + d.dy) - y(d.y); });
+    text.transition()
+        .duration(750)
+        .attr("x", function(d) { return x(d.x); })
+        .attr("y", function(d) { return y(d.y); })
+        .attr("width", function(d) { return x(d.x + d.dx) - x(d.x); })
+        .attr("height", function(d) { return y(d.y + d.dy) - y(d.y); });
+  }
+
+ function maxDepth(d) {
+   return d.children ? Math.max.apply(Math, d.children.map(maxDepth)) : d.y + d.dy
+ }
+
+ function isParentOf(p, c) {
+    if (p === c) return true
+    if (p.children) {
+      return p.children.some(function(d) {
+        return isParentOf(d, c)
+      })
+    }
+    return false
+  }
+}
+
+/*
   Rendering sparql-results+json object into a circle pack
 
   References:

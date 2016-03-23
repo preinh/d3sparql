@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+ <head>
+  <script src="lib/d3/d3.js"></script>
+  <script src="d3sparql.js"></script>
+  <script>
+  function exec() {
+    /* Uncomment to see debug information in console */
+    d3sparql.debug = true;
+    var endpoint = d3.select("#endpoint").property("value")
+    var sparql = d3.select("#sparql").property("value")
+    d3sparql.query(endpoint, sparql, render)
+  }
+  function render(json) {
+    /* set options and call the d3spraql.xxxxx function in this library ... */
+    var config = {
+      // for d3spraql.tree()
+      "root": "root_name",
+      "parent": "parent_name",
+      "child": "child_name",
+      "value": "name",
+      // for d3sparql.sunburst()
+      "width": 800,
+      "height": 600,
+      "margin": 100,
+      "selector": "#result"
+    }
+    d3sparql.icicle(json, config)
+  }
+  </script>
+  <style>
+  </style>
+ </head>
+ <body onload="exec();">
+  <form style="display:none">
+   <input id="endpoint" value="http://resource.geosciml.org/sparql/isc2014" type="text">
+   <textarea id="sparql">
+     PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+     PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+     prefix xsd:   <http://www.w3.org/2001/XMLSchema#>
+     prefix foaf:  <http://xmlns.com/foaf/0.1/>
+     prefix api:   <http://purl.org/linked-data/api/vocab#>
+     prefix skos:  <http://www.w3.org/2004/02/skos/core#>
+     prefix gts:   <http://resource.geosciml.org/ontology/timescale/gts#>
+     prefix thors: <http://resource.geosciml.org/ontology/timescale/thors#>
+     prefix isc:   <http://resource.geosciml.org/classifier/ics/ischart/>
+
+     SELECT ?root_name ?parent_name ?child_name
+     WHERE {
+     	{
+          VALUES ?r { isc:2014 }
+            	?r a gts:GeologicTimescale .
+            	?p skos:topConceptOf+ ?r .
+            	?p a gts:GeochronologicEra .
+
+            	?r rdfs:label ?root_name .
+            	?r rdfs:label ?parent_name .
+            	?p rdfs:label ?child_name .
+     	} UNION {
+         	VALUES ?r { isc:2014 }
+           	?_r skos:member+ ?c .
+           	?c skos:broader ?p .
+           	FILTER ( ?_r != isc: )
+
+           	?r rdfs:label ?root_name .
+           	?p rdfs:label ?parent_name .
+           	?c rdfs:label ?child_name .
+         }
+     }
+    </textarea>
+  </form>
+  <div id="result"></div>
+ </body>
+</html>
